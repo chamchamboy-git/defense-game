@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="theme-color" content="#07131d" />
+  <title>DUAL FRONT</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="gameShell">
+    <canvas id="game" aria-label="2レーン防衛ゲーム"></canvas>
+    <section id="startScreen" class="overlay">
+      <div class="logo"><span>DUAL</span><strong>FRONT</strong></div>
+      <p>2つの戦線を切り替えて<br>部隊を強くしろ</p>
+      <button id="startButton">作戦開始</button>
+      <small>ドラッグ / ← → でレーン移動</small>
+    </section>
+    <section id="gameOver" class="overlay hidden">
+      <div class="eyebrow">MISSION FAILED</div>
+      <h1>防衛線、突破</h1>
+      <p id="finalScore"></p>
+      <button id="retryButton">もう一度</button>
+    </section>
+    <section id="pauseScreen" class="pause-overlay hidden">
+      <strong>PAUSED</strong>
+      <span>スペースキーまたは停止ボタンで再開</span>
+    </section>
+    <div id="speedControl" aria-label="スクロール速度設定">
+      <span>速度</span>
+      <button class="speedChoice active" data-speed="1">×1</button>
+      <button class="speedChoice" data-speed="2">×2</button>
+      <button class="speedChoice" data-speed="3">×3</button>
+    </div>
+    <button id="pauseButton" aria-label="一時停止">Ⅱ</button>
+    <button id="soundButton" aria-label="サウンド切替">♪</button>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Noto+Sans+JP:wght@600;800;900&display=swap');
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #03090e; }
+body { display: grid; place-items: center; font-family: 'Noto Sans JP', sans-serif; }
+#gameShell { position: relative; width: 100%; height: 100%; max-width: 620px; overflow: hidden; background: #07131d; box-shadow: 0 0 80px #000; touch-action: none; }
+#game { display: block; width: 100%; height: 100%; }
+.overlay { position: absolute; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 32px; background: radial-gradient(circle at 50% 38%, rgba(14,67,81,.76), rgba(2,8,13,.95) 65%); backdrop-filter: blur(4px); transition: opacity .28s, visibility .28s; }
+.overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+.logo { font-family: 'Black Ops One', Impact, sans-serif; line-height: .75; transform: skew(-5deg); text-shadow: 0 8px 0 #071018, 0 11px 22px #000; margin-bottom: 28px; }
+.logo span { display: block; font-size: clamp(55px, 17vw, 94px); color: #e8f1ef; letter-spacing: -4px; }
+.logo strong { display: block; font-size: clamp(58px, 18vw, 100px); color: #ffbe2e; letter-spacing: -5px; }
+.overlay p { color: #bbccd0; font-size: 16px; line-height: 1.8; margin: 0 0 25px; }
+button { border: 0; font: 900 18px 'Noto Sans JP', sans-serif; color: #12202a; background: #ffbd2d; padding: 16px 54px; clip-path: polygon(8% 0,100% 0,92% 100%,0 100%); box-shadow: 0 10px 30px rgba(255,176,24,.28); cursor: pointer; }
+button:active { transform: translateY(2px); }
+.overlay small { color: #6e8991; margin-top: 19px; font-size: 11px; letter-spacing: .1em; }
+.eyebrow { font: 16px 'Black Ops One', sans-serif; color: #ff6464; letter-spacing: .2em; }
+.overlay h1 { margin: 8px 0 14px; font-size: 37px; }
+#soundButton { position: absolute; right: 16px; top: 16px; z-index: 20; width: 38px; height: 38px; padding: 0; border-radius: 50%; clip-path: none; color: #d6e4e7; background: rgba(5,16,23,.65); border: 1px solid rgba(255,255,255,.15); font-size: 16px; }
+#pauseButton { position: absolute; right: 62px; top: 16px; z-index: 20; width: 38px; height: 38px; padding: 0; border-radius: 50%; clip-path: none; color: #d6e4e7; background: rgba(5,16,23,.65); border: 1px solid rgba(255,255,255,.15); font-size: 14px; }
+.pause-overlay { position: absolute; inset: 0; z-index: 15; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; background: rgba(2,9,13,.62); backdrop-filter: blur(3px); transition: opacity .18s, visibility .18s; }
+.pause-overlay.hidden { opacity: 0; visibility: hidden; }
+.pause-overlay strong { font: 48px 'Black Ops One', Impact, sans-serif; color: #ffca48; letter-spacing: .08em; text-shadow: 0 5px 0 #101b20; }
+.pause-overlay span { margin-top: 10px; color: #bed0d3; font-size: 11px; }
+#speedControl { position: absolute; z-index: 8; right: 16px; bottom: 16px; display: grid; grid-template-columns: repeat(3, 38px); grid-template-rows: 15px 30px; gap: 3px; align-items: center; justify-items: center; padding: 7px 9px 9px; border: 1px solid rgba(255,255,255,.13); border-radius: 10px; color: #9cb2b8; background: rgba(3,12,17,.76); backdrop-filter: blur(5px); font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+#speedControl span { grid-column: 1 / 4; }
+#speedControl button { width: 37px; height: 27px; padding: 0; clip-path: none; border-radius: 6px; color: #9fb9b7; background: #173336; box-shadow: none; font: 900 12px sans-serif; line-height: 1; }
+#speedControl button.active { color: #10251f; background: #5ee4ba; box-shadow: 0 0 13px rgba(94,228,186,.34); }
+@media (min-width: 700px) { #gameShell { height: min(100%, 920px); border: 1px solid #1d3b45; } }
