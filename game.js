@@ -77,9 +77,9 @@ function currentWeaponName(){return state.weaponType==='MACHINEGUN'?'MACHINE GUN
 
 function addObject(lane,type,y=-80){
   const data={lane,type,x:laneX(lane),y,hit:0,dead:false};
-  const rank=weaponRanks[state.weaponType],armyPressure=Math.max(0,state.soldiers-3),upgradePressure=1+state.weaponLevel*.18,stageFactor=1+(stage-1)*.38;
-  if(type==='swarm'){const armor=Math.floor((4+elapsed*.25+armyPressure*1.15*upgradePressure)*stageFactor);Object.assign(data,{hp:armor,maxHp:armor,r:12,speed:59+(stage-1)*4+elapsed*.12});}
-  if(type==='enemy'){const armor=Math.floor((12+elapsed*.95+armyPressure*4.5*(1+rank*.2)*upgradePressure)*stageFactor);Object.assign(data,{hp:armor,maxHp:armor,r:18,speed:44+(stage-1)*4+elapsed*.18});}
+  const rank=weaponRanks[state.weaponType],armyPressure=Math.max(0,state.soldiers-3),upgradePressure=1+state.weaponLevel*.18,stageFactor=1+(stage-1)*.3;
+  if(type==='swarm'){const armor=Math.floor((4+elapsed*.21+armyPressure*.98*upgradePressure)*stageFactor);Object.assign(data,{hp:armor,maxHp:armor,r:12,speed:55+(stage-1)*3+elapsed*.1});}
+  if(type==='enemy'){const armor=Math.floor((11+elapsed*.78+armyPressure*3.8*(1+rank*.2)*upgradePressure)*stageFactor);Object.assign(data,{hp:armor,maxHp:armor,r:18,speed:41+(stage-1)*3+elapsed*.15});}
   if(type==='boss'){const armor=Math.floor((350+elapsed*6+state.soldiers*27*(1+rank*.2)*upgradePressure)*stageFactor);Object.assign(data,{hp:armor,maxHp:armor,r:46,speed:22});}
   if(type==='weapon'){
     const next=rank===0?'MACHINEGUN':rank===1?'LASER':'PLASMA';
@@ -112,7 +112,7 @@ function spawnWave(){
 }
 function livingThreats(){return state.objects.some(o=>!o.dead&&['swarm','enemy','boss'].includes(o.type));}
 function spawnStageBoss(){
-  const lane=Math.random()<.5?0:1;addObject(lane,'boss',-95);const boss=state.objects.at(-1),multipliers=[2.2,3.4,5.2];
+  const lane=Math.random()<.5?0:1;addObject(lane,'boss',-95);const boss=state.objects.at(-1),multipliers=[1.8,2.7,4.1];
   boss.stageBoss=true;boss.hp=Math.floor(boss.hp*multipliers[stage-1]);boss.maxHp=boss.hp;boss.r=52+stage*7;boss.speed=15+stage;
   stagePhase='boss';stageBanner=2.2;popup(W/2,H*.28,`WARNING — BOSS 1-${stage}`,'#ff625f');tone(58,.14,'sawtooth');
 }
@@ -122,7 +122,7 @@ function finishStage(){
   stagePhase='transition';stageDelay=2.7;popup(W/2,H*.31,`STAGE 1-${stage} CLEAR`,'#68efbf');tone(760,.1,'triangle');
 }
 function startNextStage(){
-  stage++;wave=0;stagePhase='waves';spawnClock=1.2;stageBanner=2.4;state.hp=Math.min(100,state.hp+22);state.objects=[];state.bullets=[];playAdventureChord();
+  stage++;wave=0;stagePhase='waves';spawnClock=1.35;stageBanner=2.4;state.hp=Math.min(100,state.hp+30);state.objects=[];state.bullets=[];playAdventureChord();
 }
 function burst(x,y,color,n=10){for(let i=0;i<n;i++)state.particles.push({x,y,vx:rand(-90,90),vy:rand(-90,60),life:rand(.25,.6),color,size:rand(2,5)});}
 function popup(x,y,text,color='#fff'){state.popups.push({x,y,text,color,life:1});}
@@ -157,16 +157,21 @@ function destroy(o){
   burst(o.x,o.y,['swarm','enemy','boss'].includes(o.type)?'#ff765f':'#68f2cc',o.r); shake=o.type==='boss'?10:4;
 }
 function collidePlayer(o){
-  if(Math.abs(o.x-state.playerX)>W*.18)return;
   if(o.type==='plus'||o.type==='minus'){
+    // ゲートは兵士の判定線を横切った瞬間だけ判定する。
+    // 見送った後にレーン移動しても、遡って取得されないようにする。
+    if(o.gateResolved)return;
+    o.gateResolved=true;
+    if(Math.abs(o.x-state.playerX)>W*.18)return;
     state.soldiers=clamp(state.soldiers+o.value,1,60);popup(o.x,H-150,`${o.value>0?'+':''}${o.value} 兵士`,o.value>0?'#75ffc9':'#ff6572');tone(o.value>0?640:140,.06);o.dead=true;burst(o.x,o.y,o.value>0?'#75ffc9':'#ff6572',14);
   } else {
-    const damage=o.type==='boss'?35:12;state.hp-=damage;state.soldiers=Math.max(1,state.soldiers-(o.type==='boss'?2:1));popup(o.x,H-155,`-${damage} 防衛力`,'#ff626d');o.dead=true;shake=14;tone(70,.11,'sawtooth');
+    if(Math.abs(o.x-state.playerX)>W*.18)return;
+    const damage=o.type==='boss'?28:9;state.hp-=damage;state.soldiers=Math.max(1,state.soldiers-(o.type==='boss'?2:1));popup(o.x,H-155,`-${damage} 防衛力`,'#ff626d');o.dead=true;shake=14;tone(70,.11,'sawtooth');
   }
 }
 function breach(o){
   if(o.dead||!['swarm','enemy','boss'].includes(o.type))return;
-  const damage=o.type==='boss'?28:o.type==='enemy'?8:3;state.hp-=damage;o.dead=true;shake=9;
+  const damage=o.type==='boss'?22:o.type==='enemy'?6:2;state.hp-=damage;o.dead=true;shake=9;
   popup(o.x,H-55,`突破！ -${damage}`,'#ff626d');burst(o.x,H-30,'#ff4c5d',12);tone(75,.1,'sawtooth');
 }
 function update(dt){
@@ -175,7 +180,7 @@ function update(dt){
   if(stagePhase==='transition'){stageDelay-=dt;if(stageDelay<=0)startNextStage();}
   if(stagePhase==='waves'){
     spawnClock-=dt;
-    if(spawnClock<=0&&wave<wavesPerStage[stage-1]){spawnWave();wave++;spawnClock=Math.max(1.7,3.25-stage*.28);}
+    if(spawnClock<=0&&wave<wavesPerStage[stage-1]){spawnWave();wave++;spawnClock=Math.max(1.9,3.5-stage*.25);}
     if(wave>=wavesPerStage[stage-1]&&!livingThreats())spawnStageBoss();
   }
   state.laneFlash=state.laneFlash.map(v=>Math.max(0,v-dt));
