@@ -113,8 +113,9 @@ function spawnWave(){
 function livingThreats(){return state.objects.some(o=>!o.dead&&['swarm','enemy','boss'].includes(o.type));}
 function spawnStageBoss(){
   const lane=Math.random()<.5?0:1;addObject(lane,'boss',-95);const boss=state.objects.at(-1),multipliers=[1.8,2.7,4.1];
-  boss.stageBoss=true;boss.hp=Math.floor(boss.hp*multipliers[stage-1]);boss.maxHp=boss.hp;boss.r=52+stage*7;boss.speed=15+stage;boss.attackClock=1.5;
+  boss.stageBoss=true;boss.hp=Math.floor(boss.hp*multipliers[stage-1]);boss.maxHp=boss.hp;boss.r=52+stage*7;boss.y=-boss.r*.18;boss.speed=15+stage;boss.attackClock=1.65;boss.spawnShield=1;
   stagePhase='boss';stageBanner=2.2;popup(W/2,H*.28,`WARNING — BOSS 1-${stage}`,'#ff625f');tone(58,.14,'sawtooth');
+  shootBossFireball(boss);
 }
 function finishStage(){
   score+=stage*1000;state.bullets=[];state.enemyBullets=[];stageBanner=2.7;
@@ -128,7 +129,7 @@ function burst(x,y,color,n=10){for(let i=0;i<n;i++)state.particles.push({x,y,vx:
 function popup(x,y,text,color='#fff'){state.popups.push({x,y,text,color,life:1});}
 function shoot(){
   const machine=state.weaponType==='MACHINEGUN',laser=state.weaponType==='LASER',plasma=state.weaponType==='PLASMA';
-  const guns=Math.min(state.soldiers,60), cols=Math.min(guns,10); for(let i=0;i<guns;i++){
+  const guns=Math.min(state.soldiers,60), cols=guns<=6?2:guns<=12?3:guns<=24?6:10; for(let i=0;i<guns;i++){
     const col=i%cols,row=Math.floor(i/cols),off=(col-(Math.min(cols,guns-row*cols)-1)/2)*7;
     const base=(machine?1.05:laser?2.8:plasma?3.2:1.15)*(1+state.weaponLevel*.22);
     state.bullets.push({x:state.playerX+off,y:H-105-row*5,vy:laser?-720:plasma?-650:-580,damage:base*(state.soldiers>20?1.2:1),pierce:laser?4:plasma?2+state.weaponLevel:1,level:state.weaponLevel,weapon:state.weaponType});
@@ -196,7 +197,7 @@ function update(dt){
     if(wave>=wavesPerStage[stage-1]&&!livingThreats())spawnStageBoss();
   }
   state.laneFlash=state.laneFlash.map(v=>Math.max(0,v-dt));
-  for(const b of state.bullets){b.y+=b.vy*dt;for(const o of state.objects){if(o.dead||['plus','minus'].includes(o.type))continue;if(Math.abs(b.x-o.x)<o.r&&Math.abs(b.y-o.y)<o.r){o.hp-=b.damage;o.hit=.08;b.pierce--;if(b.pierce<=0)b.dead=true;burst(b.x,b.y,b.level?'#6de7ff':'#ffe491',b.level?4:2);if(o.hp<=0)destroy(o);if(b.dead)break;}}}
+  for(const b of state.bullets){b.y+=b.vy*dt;for(const o of state.objects){if(o.dead||['plus','minus'].includes(o.type))continue;if(Math.abs(b.x-o.x)<o.r&&Math.abs(b.y-o.y)<o.r){if(o.spawnShield>0){b.dead=true;burst(b.x,b.y,'#8cf5ff',8);break;}o.hp-=b.damage;o.hit=.08;b.pierce--;if(b.pierce<=0)b.dead=true;burst(b.x,b.y,b.level?'#6de7ff':'#ffe491',b.level?4:2);if(o.hp<=0)destroy(o);if(b.dead)break;}}}
   state.bullets=state.bullets.filter(b=>!b.dead&&b.y>-20);
   for(const f of state.enemyBullets){
     f.x+=f.vx*dt;f.y+=f.vy*dt;f.life-=dt;
@@ -206,7 +207,7 @@ function update(dt){
     } else if(f.y>H+30)f.dead=true;
   }
   state.enemyBullets=state.enemyBullets.filter(f=>!f.dead&&f.life>0);
-  for(const o of state.objects){o.y+=o.speed*dt;o.hit=Math.max(0,o.hit-dt);if(o.y>H-130)collidePlayer(o);if(o.y>H+12)breach(o);}
+  for(const o of state.objects){o.y+=o.speed*dt;o.hit=Math.max(0,o.hit-dt);o.spawnShield=Math.max(0,(o.spawnShield||0)-dt);if(o.y>H-130)collidePlayer(o);if(o.y>H+12)breach(o);}
   for(const o of state.objects){if(o.stageBoss&&!o.dead){o.attackClock-=dt;if(o.attackClock<=0){shootBossFireball(o);o.attackClock=Math.max(1.25,2.35-stage*.28)+Math.random()*.45;}}}
   state.objects=state.objects.filter(o=>!o.dead&&o.y<H+80);
   for(const p of state.particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=130*dt;p.life-=dt;} state.particles=state.particles.filter(p=>p.life>0);
@@ -300,7 +301,7 @@ function draw(){
     ctx.fillStyle=glow;ctx.beginPath();ctx.arc(f.x,f.y,f.r*1.8,0,7);ctx.fill();ctx.fillStyle='#ffdc65';ctx.beginPath();ctx.arc(f.x,f.y,f.r*.72,0,7);ctx.fill();
     ctx.globalAlpha=.45;ctx.fillStyle='#ff512c';ctx.beginPath();ctx.moveTo(f.x-f.r*.7,f.y-f.r);ctx.lineTo(f.x-f.vx*.07,f.y-f.r*3.1);ctx.lineTo(f.x+f.r*.7,f.y-f.r);ctx.fill();ctx.globalAlpha=1;
   }
-  const count=Math.min(state.soldiers,60), columns=count<=8?count:count<=16?8:count<=36?12:15;
+  const count=Math.min(state.soldiers,60), columns=count<=6?2:count<=12?3:count<=24?6:count<=40?10:15;
   const unitScale=count<=12?.9:count<=24?.72:count<=40?.6:.5, gapX=18*unitScale, gapY=17*unitScale;
   for(let i=count-1;i>=0;i--){const row=Math.floor(i/columns),col=i%columns,cols=Math.min(columns,count-row*columns);drawUnit(state.playerX+(col-(cols-1)/2)*gapX,H-67-row*gapY,unitScale);}
   for(const p of state.particles){ctx.globalAlpha=clamp(p.life*2,0,1);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,p.size,p.size);}ctx.globalAlpha=1;
