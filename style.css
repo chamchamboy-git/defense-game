@@ -15,6 +15,7 @@ button { border: 0; font: 900 18px 'Noto Sans JP', sans-serif; color: #12202a; b
 button:active { transform: translateY(2px); }
 .overlay small { color: #6e8991; margin-top: 19px; font-size: 11px; letter-spacing: .1em; }
 .eyebrow { font: 16px 'Black Ops One', sans-serif; color: #ff6464; letter-spacing: .2em; }
+.victory-label { color: #68efbf; }
 .overlay h1 { margin: 8px 0 14px; font-size: 37px; }
 #soundButton { position: absolute; right: 16px; top: 16px; z-index: 20; width: 38px; height: 38px; padding: 0; border-radius: 50%; clip-path: none; color: #d6e4e7; background: rgba(5,16,23,.65); border: 1px solid rgba(255,255,255,.15); font-size: 16px; }
 #pauseButton { position: absolute; right: 62px; top: 16px; z-index: 20; width: 38px; height: 38px; padding: 0; border-radius: 50%; clip-path: none; color: #d6e4e7; background: rgba(5,16,23,.65); border: 1px solid rgba(255,255,255,.15); font-size: 14px; }

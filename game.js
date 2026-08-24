@@ -3,9 +3,13 @@ const ctx = canvas.getContext('2d');
 const startScreen = document.querySelector('#startScreen');
 const gameOverScreen = document.querySelector('#gameOver');
 const finalScore = document.querySelector('#finalScore');
+const victoryScreen = document.querySelector('#victoryScreen');
+const victoryScore = document.querySelector('#victoryScore');
 const pauseScreen = document.querySelector('#pauseScreen');
 const pauseButton = document.querySelector('#pauseButton');
 let W=0,H=0,DPR=1, playing=false, paused=false, last=0, elapsed=0, spawnClock=0, distance=0, score=0, shake=0;
+let stage=1,wave=0,stagePhase='waves',stageDelay=0,stageBanner=0;
+const wavesPerStage=[4,5,6];
 let audioOn=true, audioCtx=null, musicClock=0, musicStep=0, worldSpeed=1;
 const state = { playerX:0, targetX:0, soldiers:3, weaponType:'RIFLE', weaponLevel:0, hp:100, fireClock:0, objects:[], bullets:[], particles:[], popups:[], laneFlash:[0,0] };
 const laneX = i => W * (i ? .69 : .31);
@@ -21,11 +25,11 @@ addEventListener('resize',resize); resize();
 
 function reset(){
   Object.assign(state,{playerX:laneX(0),targetX:laneX(0),soldiers:3,weaponType:'RIFLE',weaponLevel:0,hp:100,fireClock:0,objects:[],bullets:[],particles:[],popups:[],laneFlash:[0,0]});
-  elapsed=spawnClock=distance=score=shake=musicClock=musicStep=0; playing=true; paused=false; last=performance.now();
+  elapsed=spawnClock=distance=score=shake=musicClock=musicStep=0;stage=1;wave=0;stagePhase='waves';stageDelay=0;stageBanner=2.4;playing=true;paused=false;last=performance.now();
   ensureAudio();
 }
-async function begin(){ reset(); startScreen.classList.add('hidden'); gameOverScreen.classList.add('hidden');pauseScreen.classList.add('hidden');pauseButton.textContent='Ⅱ';await ensureAudio();playAdventureChord();requestAnimationFrame(loop); }
-document.querySelector('#startButton').onclick=begin; document.querySelector('#retryButton').onclick=begin;
+async function begin(){reset();startScreen.classList.add('hidden');gameOverScreen.classList.add('hidden');victoryScreen.classList.add('hidden');pauseScreen.classList.add('hidden');pauseButton.textContent='Ⅱ';await ensureAudio();playAdventureChord();requestAnimationFrame(loop);}
+document.querySelector('#startButton').onclick=begin;document.querySelector('#retryButton').onclick=begin;document.querySelector('#victoryRetryButton').onclick=begin;
 document.querySelector('#soundButton').onclick=()=>{audioOn=!audioOn;ensureAudio();document.querySelector('#soundButton').textContent=audioOn?'♪':'×';};
 const speedChoices=[...document.querySelectorAll('.speedChoice')];
 function setWorldSpeed(next){worldSpeed=clamp(next,1,3);speedChoices.forEach(button=>button.classList.toggle('active',Number(button.dataset.speed)===worldSpeed));}
@@ -73,10 +77,10 @@ function currentWeaponName(){return state.weaponType==='MACHINEGUN'?'MACHINE GUN
 
 function addObject(lane,type,y=-80){
   const data={lane,type,x:laneX(lane),y,hit:0,dead:false};
-  const rank=weaponRanks[state.weaponType],armyPressure=Math.max(0,state.soldiers-3),upgradePressure=1+state.weaponLevel*.18;
-  if(type==='swarm'){const armor=4+Math.floor(elapsed*.34)+Math.floor(armyPressure*1.25*upgradePressure);Object.assign(data,{hp:armor,maxHp:armor,r:12,speed:61+elapsed*.18});}
-  if(type==='enemy'){const armor=12+Math.floor(elapsed*1.5)+Math.floor(armyPressure*5*(1+rank*.2)*upgradePressure);Object.assign(data,{hp:armor,maxHp:armor,r:18,speed:46+elapsed*.3});}
-  if(type==='boss'){const armor=350+Math.floor(elapsed*8)+Math.floor(state.soldiers*30*(1+rank*.2)*upgradePressure);Object.assign(data,{hp:armor,maxHp:armor,r:46,speed:22});}
+  const rank=weaponRanks[state.weaponType],armyPressure=Math.max(0,state.soldiers-3),upgradePressure=1+state.weaponLevel*.18,stageFactor=1+(stage-1)*.38;
+  if(type==='swarm'){const armor=Math.floor((4+elapsed*.25+armyPressure*1.15*upgradePressure)*stageFactor);Object.assign(data,{hp:armor,maxHp:armor,r:12,speed:59+(stage-1)*4+elapsed*.12});}
+  if(type==='enemy'){const armor=Math.floor((12+elapsed*.95+armyPressure*4.5*(1+rank*.2)*upgradePressure)*stageFactor);Object.assign(data,{hp:armor,maxHp:armor,r:18,speed:44+(stage-1)*4+elapsed*.18});}
+  if(type==='boss'){const armor=Math.floor((350+elapsed*6+state.soldiers*27*(1+rank*.2)*upgradePressure)*stageFactor);Object.assign(data,{hp:armor,maxHp:armor,r:46,speed:22});}
   if(type==='weapon'){
     const next=rank===0?'MACHINEGUN':rank===1?'LASER':'PLASMA';
     const armor=next==='MACHINEGUN'?95:next==='LASER'?180:300+state.weaponLevel*90;
@@ -93,18 +97,32 @@ function spawnWave(){
   if(elapsed>25&&roll<.14){
     addObject(safe,'superweapon',-70);
     const swarm=18+Math.min(16,Math.floor(elapsed/16));
-    for(let i=0;i<swarm;i++)addObject(danger,i%13===12?'boss':i%5===4?'enemy':'swarm',-45-i*27);
+    for(let i=0;i<swarm;i++)addObject(danger,i%5===4?'enemy':'swarm',-45-i*27);
     popup(W/2,H*.24,'強武器か、大群撃破か！','#ffca48');
   }
   else if(roll<.28){addObject(safe,'monument');for(let i=0;i<12+Math.min(8,Math.floor(elapsed/25));i++)addObject(danger,i%6===5?'enemy':'swarm',-50-i*29);}
-  else if(roll<.45){addObject(safe,'weapon');for(let i=0;i<10+Math.min(8,Math.floor(elapsed/30));i++)addObject(danger,i===9&&Math.random()<.45?'boss':i%5===4?'enemy':'swarm',-48-i*31);}
+  else if(roll<.45){addObject(safe,'weapon');for(let i=0;i<10+Math.min(8,Math.floor(elapsed/30))+(stage-1)*2;i++)addObject(danger,i%5===4?'enemy':'swarm',-48-i*31);}
   else if(roll<.53){addObject(safe,'plus');addObject(danger,Math.random()<.7?'minus':'enemy');}
   else {
-    const mainCount=11+Math.min(15,Math.floor(elapsed/15));
+    const mainCount=11+Math.min(15,Math.floor(elapsed/15))+(stage-1)*3;
     for(let i=0;i<mainCount;i++)addObject(danger,i%8===7?'enemy':'swarm',-45-i*28);
     const sideCount=3+Math.min(6,Math.floor(elapsed/35));for(let i=0;i<sideCount;i++)addObject(safe,'swarm',-90-i*42);
     if(Math.random()<.15)addObject(safe,'plus',-65-sideCount*42);
   }
+}
+function livingThreats(){return state.objects.some(o=>!o.dead&&['swarm','enemy','boss'].includes(o.type));}
+function spawnStageBoss(){
+  const lane=Math.random()<.5?0:1;addObject(lane,'boss',-95);const boss=state.objects.at(-1),multipliers=[2.2,3.4,5.2];
+  boss.stageBoss=true;boss.hp=Math.floor(boss.hp*multipliers[stage-1]);boss.maxHp=boss.hp;boss.r=52+stage*7;boss.speed=15+stage;
+  stagePhase='boss';stageBanner=2.2;popup(W/2,H*.28,`WARNING — BOSS 1-${stage}`,'#ff625f');tone(58,.14,'sawtooth');
+}
+function finishStage(){
+  score+=stage*1000;state.bullets=[];stageBanner=2.7;
+  if(stage===3){playAdventureChord();playing=false;victoryScore.textContent=`全3ステージ制覇 ・ スコア ${score}`;victoryScreen.classList.remove('hidden');return;}
+  stagePhase='transition';stageDelay=2.7;popup(W/2,H*.31,`STAGE 1-${stage} CLEAR`,'#68efbf');tone(760,.1,'triangle');
+}
+function startNextStage(){
+  stage++;wave=0;stagePhase='waves';spawnClock=1.2;stageBanner=2.4;state.hp=Math.min(100,state.hp+22);state.objects=[];state.bullets=[];playAdventureChord();
 }
 function burst(x,y,color,n=10){for(let i=0;i<n;i++)state.particles.push({x,y,vx:rand(-90,90),vy:rand(-90,60),life:rand(.25,.6),color,size:rand(2,5)});}
 function popup(x,y,text,color='#fff'){state.popups.push({x,y,text,color,life:1});}
@@ -119,6 +137,7 @@ function shoot(){
 }
 function destroy(o){
   o.dead=true; score+=o.type==='boss'?250:o.type==='enemy'?35:o.type==='swarm'?12:100;
+  if(o.stageBoss){burst(o.x,o.y,'#ff765f',80);finishStage();return;}
   if(o.type==='superweapon'){
     const wasPlasma=state.weaponType==='PLASMA';
     state.weaponType='PLASMA';state.weaponLevel=wasPlasma?clamp(state.weaponLevel+1,1,8):1;score+=500;
@@ -151,9 +170,14 @@ function breach(o){
   popup(o.x,H-55,`突破！ -${damage}`,'#ff626d');burst(o.x,H-30,'#ff4c5d',12);tone(75,.1,'sawtooth');
 }
 function update(dt){
-  elapsed+=dt;distance+=dt*7;spawnClock-=dt;shake*=.86; state.playerX+=(state.targetX-state.playerX)*Math.min(1,dt*12);updateMusic(dt);
+  elapsed+=dt;distance+=dt*7;stageBanner=Math.max(0,stageBanner-dt);shake*=.86;state.playerX+=(state.targetX-state.playerX)*Math.min(1,dt*12);updateMusic(dt);
   state.fireClock-=dt; if(state.fireClock<=0){shoot();const weaponRate=state.weaponType==='MACHINEGUN'?.48:state.weaponType==='LASER'?1.18:1;state.fireClock=Math.max(.065,(.25-state.soldiers*.0065)*weaponRate);}
-  if(spawnClock<=0){spawnWave();spawnClock=Math.max(1.55,3.15-elapsed*.009);}
+  if(stagePhase==='transition'){stageDelay-=dt;if(stageDelay<=0)startNextStage();}
+  if(stagePhase==='waves'){
+    spawnClock-=dt;
+    if(spawnClock<=0&&wave<wavesPerStage[stage-1]){spawnWave();wave++;spawnClock=Math.max(1.7,3.25-stage*.28);}
+    if(wave>=wavesPerStage[stage-1]&&!livingThreats())spawnStageBoss();
+  }
   state.laneFlash=state.laneFlash.map(v=>Math.max(0,v-dt));
   for(const b of state.bullets){b.y+=b.vy*dt;for(const o of state.objects){if(o.dead||['plus','minus'].includes(o.type))continue;if(Math.abs(b.x-o.x)<o.r&&Math.abs(b.y-o.y)<o.r){o.hp-=b.damage;o.hit=.08;b.pierce--;if(b.pierce<=0)b.dead=true;burst(b.x,b.y,b.level?'#6de7ff':'#ffe491',b.level?4:2);if(o.hp<=0)destroy(o);if(b.dead)break;}}}
   state.bullets=state.bullets.filter(b=>!b.dead&&b.y>-20);
@@ -234,7 +258,8 @@ function drawHUD(){
     const weaponName=`${currentWeaponName()} LV.${state.weaponLevel}`;
     ctx.fillStyle=state.weaponType==='MACHINEGUN'?'#ffd36d':'#73ddff';ctx.font='900 11px Noto Sans JP';ctx.fillText(weaponName,18,88);
   }
-  ctx.textAlign='right';ctx.fillStyle='#ffca48';ctx.font='900 17px Noto Sans JP';ctx.fillText(`${Math.floor(distance)}m`,W-18,40);ctx.fillStyle='#829ba0';ctx.font='700 10px Noto Sans JP';ctx.fillText(`SCORE ${score}`,W-18,60);ctx.textAlign='left';
+  ctx.textAlign='right';ctx.fillStyle='#ffca48';ctx.font='900 17px Noto Sans JP';ctx.fillText(`STAGE 1-${stage}`,W-18,38);ctx.fillStyle='#aec0c3';ctx.font='800 10px Noto Sans JP';const progress=stagePhase==='boss'?'BOSS':stagePhase==='transition'?'CLEAR':`WAVE ${Math.max(1,wave)}/${wavesPerStage[stage-1]}`;ctx.fillText(progress,W-18,56);ctx.fillStyle='#829ba0';ctx.fillText(`SCORE ${score}`,W-18,72);ctx.textAlign='left';
+  const boss=state.objects.find(o=>o.stageBoss&&!o.dead);if(boss){ctx.fillStyle='rgba(0,0,0,.72)';rect(W*.15,101,W*.7,14,7);ctx.fill();ctx.fillStyle='#ff4d55';rect(W*.15,101,W*.7*clamp(boss.hp/boss.maxHp,0,1),14,7);ctx.fill();ctx.fillStyle='#fff';ctx.font='900 9px Noto Sans JP';ctx.textAlign='center';ctx.fillText(`BOSS 1-${stage}  ${Math.max(0,Math.ceil(boss.hp))}`,W/2,112);ctx.textAlign='left';}
 }
 function draw(){
   ctx.save();drawRoad();
@@ -248,7 +273,9 @@ function draw(){
   const unitScale=count<=12?.9:count<=24?.72:count<=40?.6:.5, gapX=18*unitScale, gapY=17*unitScale;
   for(let i=count-1;i>=0;i--){const row=Math.floor(i/columns),col=i%columns,cols=Math.min(columns,count-row*columns);drawUnit(state.playerX+(col-(cols-1)/2)*gapX,H-67-row*gapY,unitScale);}
   for(const p of state.particles){ctx.globalAlpha=clamp(p.life*2,0,1);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,p.size,p.size);}ctx.globalAlpha=1;
-  for(const p of state.popups){ctx.globalAlpha=clamp(p.life*2,0,1);ctx.fillStyle=p.color;ctx.font='900 18px Noto Sans JP';ctx.textAlign='center';ctx.fillText(p.text,p.x,p.y);}ctx.globalAlpha=1;ctx.textAlign='left';drawHUD();ctx.restore();
+  for(const p of state.popups){ctx.globalAlpha=clamp(p.life*2,0,1);ctx.fillStyle=p.color;ctx.font='900 18px Noto Sans JP';ctx.textAlign='center';ctx.fillText(p.text,p.x,p.y);}ctx.globalAlpha=1;ctx.textAlign='left';drawHUD();
+  if(stageBanner>0){const alpha=clamp(stageBanner<.45?stageBanner/.45:1,0,1);ctx.globalAlpha=alpha;ctx.fillStyle='rgba(2,10,14,.72)';ctx.fillRect(0,H*.39,W,H*.15);ctx.fillStyle=stagePhase==='boss'?'#ff615f':'#ffca48';ctx.font='900 34px Black Ops One, Impact';ctx.textAlign='center';ctx.fillText(stagePhase==='boss'?`BOSS 1-${stage}`:stagePhase==='transition'?`1-${stage} CLEAR`:`STAGE 1-${stage}`,W/2,H*.465);ctx.globalAlpha=1;ctx.textAlign='left';}
+  ctx.restore();
 }
 function loop(now){if(!playing)return;const realDt=Math.min(.033,(now-last)/1000),gameDt=realDt*worldSpeed*1.25;last=now;if(!paused)update(gameDt);draw();if(playing)requestAnimationFrame(loop);}
 draw();
