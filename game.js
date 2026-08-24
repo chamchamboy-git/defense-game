@@ -11,7 +11,7 @@ let W=0,H=0,DPR=1, playing=false, paused=false, last=0, elapsed=0, spawnClock=0,
 let stage=1,wave=0,stagePhase='waves',stageDelay=0,stageBanner=0;
 const wavesPerStage=[4,5,6];
 let audioOn=true, audioCtx=null, musicClock=0, musicStep=0, worldSpeed=1;
-const state = { playerX:0, targetX:0, soldiers:3, weaponType:'RIFLE', weaponLevel:0, hp:100, fireClock:0, objects:[], bullets:[], particles:[], popups:[], laneFlash:[0,0] };
+const state = { playerX:0, targetX:0, soldiers:3, weaponType:'RIFLE', weaponLevel:0, hp:100, fireClock:0, objects:[], bullets:[], enemyBullets:[], particles:[], popups:[], laneFlash:[0,0] };
 const laneX = i => W * (i ? .69 : .31);
 const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
 const rand = (a,b) => a+Math.random()*(b-a);
@@ -24,7 +24,7 @@ function resize(){
 addEventListener('resize',resize); resize();
 
 function reset(){
-  Object.assign(state,{playerX:laneX(0),targetX:laneX(0),soldiers:3,weaponType:'RIFLE',weaponLevel:0,hp:100,fireClock:0,objects:[],bullets:[],particles:[],popups:[],laneFlash:[0,0]});
+  Object.assign(state,{playerX:laneX(0),targetX:laneX(0),soldiers:3,weaponType:'RIFLE',weaponLevel:0,hp:100,fireClock:0,objects:[],bullets:[],enemyBullets:[],particles:[],popups:[],laneFlash:[0,0]});
   elapsed=spawnClock=distance=score=shake=musicClock=musicStep=0;stage=1;wave=0;stagePhase='waves';stageDelay=0;stageBanner=2.4;playing=true;paused=false;last=performance.now();
   ensureAudio();
 }
@@ -113,16 +113,16 @@ function spawnWave(){
 function livingThreats(){return state.objects.some(o=>!o.dead&&['swarm','enemy','boss'].includes(o.type));}
 function spawnStageBoss(){
   const lane=Math.random()<.5?0:1;addObject(lane,'boss',-95);const boss=state.objects.at(-1),multipliers=[1.8,2.7,4.1];
-  boss.stageBoss=true;boss.hp=Math.floor(boss.hp*multipliers[stage-1]);boss.maxHp=boss.hp;boss.r=52+stage*7;boss.speed=15+stage;
+  boss.stageBoss=true;boss.hp=Math.floor(boss.hp*multipliers[stage-1]);boss.maxHp=boss.hp;boss.r=52+stage*7;boss.speed=15+stage;boss.attackClock=1.5;
   stagePhase='boss';stageBanner=2.2;popup(W/2,H*.28,`WARNING — BOSS 1-${stage}`,'#ff625f');tone(58,.14,'sawtooth');
 }
 function finishStage(){
-  score+=stage*1000;state.bullets=[];stageBanner=2.7;
+  score+=stage*1000;state.bullets=[];state.enemyBullets=[];stageBanner=2.7;
   if(stage===3){playAdventureChord();playing=false;victoryScore.textContent=`全3ステージ制覇 ・ スコア ${score}`;victoryScreen.classList.remove('hidden');return;}
   stagePhase='transition';stageDelay=2.7;popup(W/2,H*.31,`STAGE 1-${stage} CLEAR`,'#68efbf');tone(760,.1,'triangle');
 }
 function startNextStage(){
-  stage++;wave=0;stagePhase='waves';spawnClock=1.35;stageBanner=2.4;state.hp=Math.min(100,state.hp+30);state.objects=[];state.bullets=[];playAdventureChord();
+  stage++;wave=0;stagePhase='waves';spawnClock=1.35;stageBanner=2.4;state.hp=Math.min(100,state.hp+30);state.objects=[];state.bullets=[];state.enemyBullets=[];playAdventureChord();
 }
 function burst(x,y,color,n=10){for(let i=0;i<n;i++)state.particles.push({x,y,vx:rand(-90,90),vy:rand(-90,60),life:rand(.25,.6),color,size:rand(2,5)});}
 function popup(x,y,text,color='#fff'){state.popups.push({x,y,text,color,life:1});}
@@ -134,6 +134,12 @@ function shoot(){
     state.bullets.push({x:state.playerX+off,y:H-105-row*5,vy:laser?-720:plasma?-650:-580,damage:base*(state.soldiers>20?1.2:1),pierce:laser?4:plasma?2+state.weaponLevel:1,level:state.weaponLevel,weapon:state.weaponType});
   }
   tone(115,.012,'sawtooth');
+}
+function shootBossFireball(boss){
+  const startY=boss.y+boss.r*.55,targetY=H-72,travelTime=Math.max(.85,(targetY-startY)/(230+stage*18));
+  const vx=clamp((state.playerX-boss.x)/travelTime,-175,175);
+  state.enemyBullets.push({x:boss.x,y:startY,vx,vy:230+stage*18,r:10+stage,life:4,damage:5+stage*2});
+  popup(boss.x,boss.y-boss.r,'火炎弾！','#ff9b45');burst(boss.x,startY,'#ff7138',18);tone(92,.12,'sawtooth');
 }
 function destroy(o){
   o.dead=true; score+=o.type==='boss'?250:o.type==='enemy'?35:o.type==='swarm'?12:100;
@@ -166,12 +172,18 @@ function collidePlayer(o){
     state.soldiers=clamp(state.soldiers+o.value,1,60);popup(o.x,H-150,`${o.value>0?'+':''}${o.value} 兵士`,o.value>0?'#75ffc9':'#ff6572');tone(o.value>0?640:140,.06);o.dead=true;burst(o.x,o.y,o.value>0?'#75ffc9':'#ff6572',14);
   } else {
     if(Math.abs(o.x-state.playerX)>W*.18)return;
-    const damage=o.type==='boss'?28:9;state.hp-=damage;state.soldiers=Math.max(1,state.soldiers-(o.type==='boss'?2:1));popup(o.x,H-155,`-${damage} 防衛力`,'#ff626d');o.dead=true;shake=14;tone(70,.11,'sawtooth');
+    if(o.type==='boss'){
+      state.hp=0;o.dead=true;state.enemyBullets=[];popup(o.x,H-155,'ボス侵入！ 防衛線崩壊','#ff3f50');burst(o.x,H-115,'#ff3f38',48);shake=18;tone(48,.18,'sawtooth');return;
+    }
+    const damage=9;state.hp-=damage;state.soldiers=Math.max(1,state.soldiers-1);popup(o.x,H-155,`-${damage} 防衛力`,'#ff626d');o.dead=true;shake=14;tone(70,.11,'sawtooth');
   }
 }
 function breach(o){
   if(o.dead||!['swarm','enemy','boss'].includes(o.type))return;
-  const damage=o.type==='boss'?22:o.type==='enemy'?6:2;state.hp-=damage;o.dead=true;shake=9;
+  if(o.type==='boss'){
+    state.hp=0;o.dead=true;state.enemyBullets=[];popup(o.x,H-55,'ボス突破！ 防衛線崩壊','#ff3f50');burst(o.x,H-30,'#ff3f38',48);shake=18;tone(48,.18,'sawtooth');return;
+  }
+  const damage=o.type==='enemy'?6:2;state.hp-=damage;o.dead=true;shake=9;
   popup(o.x,H-55,`突破！ -${damage}`,'#ff626d');burst(o.x,H-30,'#ff4c5d',12);tone(75,.1,'sawtooth');
 }
 function update(dt){
@@ -186,7 +198,16 @@ function update(dt){
   state.laneFlash=state.laneFlash.map(v=>Math.max(0,v-dt));
   for(const b of state.bullets){b.y+=b.vy*dt;for(const o of state.objects){if(o.dead||['plus','minus'].includes(o.type))continue;if(Math.abs(b.x-o.x)<o.r&&Math.abs(b.y-o.y)<o.r){o.hp-=b.damage;o.hit=.08;b.pierce--;if(b.pierce<=0)b.dead=true;burst(b.x,b.y,b.level?'#6de7ff':'#ffe491',b.level?4:2);if(o.hp<=0)destroy(o);if(b.dead)break;}}}
   state.bullets=state.bullets.filter(b=>!b.dead&&b.y>-20);
+  for(const f of state.enemyBullets){
+    f.x+=f.vx*dt;f.y+=f.vy*dt;f.life-=dt;
+    if(f.y>H-118&&Math.abs(f.x-state.playerX)<Math.max(30,W*.075)){
+      state.hp-=f.damage;f.dead=true;state.soldiers=Math.max(1,state.soldiers-(stage===3?1:0));
+      popup(f.x,H-135,`火炎弾 -${f.damage}`,'#ff784f');burst(f.x,H-105,'#ff5b35',28);tone(62,.13,'sawtooth');
+    } else if(f.y>H+30)f.dead=true;
+  }
+  state.enemyBullets=state.enemyBullets.filter(f=>!f.dead&&f.life>0);
   for(const o of state.objects){o.y+=o.speed*dt;o.hit=Math.max(0,o.hit-dt);if(o.y>H-130)collidePlayer(o);if(o.y>H+12)breach(o);}
+  for(const o of state.objects){if(o.stageBoss&&!o.dead){o.attackClock-=dt;if(o.attackClock<=0){shootBossFireball(o);o.attackClock=Math.max(1.25,2.35-stage*.28)+Math.random()*.45;}}}
   state.objects=state.objects.filter(o=>!o.dead&&o.y<H+80);
   for(const p of state.particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=130*dt;p.life-=dt;} state.particles=state.particles.filter(p=>p.life>0);
   for(const p of state.popups){p.y-=28*dt;p.life-=dt;}state.popups=state.popups.filter(p=>p.life>0);
@@ -274,6 +295,11 @@ function draw(){
     const energy=b.weapon==='LASER'||b.weapon==='PLASMA',machine=b.weapon==='MACHINEGUN';ctx.fillStyle=energy?'#68e8ff':machine?'#ffc95f':'#ffe98e';ctx.shadowBlur=energy?9:0;ctx.shadowColor='#57dfff';
     const trail=b.weapon==='LASER'?36:energy?24:machine?19:16;ctx.globalAlpha=.23;ctx.fillRect(b.x-(energy?3:2),b.y,energy?7:5,trail);ctx.globalAlpha=1;ctx.fillRect(b.x-(energy?2:1),b.y,energy?5:3,trail*.65);
   }ctx.shadowBlur=0;
+  for(const f of state.enemyBullets){
+    const glow=ctx.createRadialGradient(f.x-3,f.y-4,1,f.x,f.y,f.r*1.8);glow.addColorStop(0,'#fff1a8');glow.addColorStop(.3,'#ff9b32');glow.addColorStop(.72,'#ef3e22');glow.addColorStop(1,'rgba(150,20,8,0)');
+    ctx.fillStyle=glow;ctx.beginPath();ctx.arc(f.x,f.y,f.r*1.8,0,7);ctx.fill();ctx.fillStyle='#ffdc65';ctx.beginPath();ctx.arc(f.x,f.y,f.r*.72,0,7);ctx.fill();
+    ctx.globalAlpha=.45;ctx.fillStyle='#ff512c';ctx.beginPath();ctx.moveTo(f.x-f.r*.7,f.y-f.r);ctx.lineTo(f.x-f.vx*.07,f.y-f.r*3.1);ctx.lineTo(f.x+f.r*.7,f.y-f.r);ctx.fill();ctx.globalAlpha=1;
+  }
   const count=Math.min(state.soldiers,60), columns=count<=8?count:count<=16?8:count<=36?12:15;
   const unitScale=count<=12?.9:count<=24?.72:count<=40?.6:.5, gapX=18*unitScale, gapY=17*unitScale;
   for(let i=count-1;i>=0;i--){const row=Math.floor(i/columns),col=i%columns,cols=Math.min(columns,count-row*columns);drawUnit(state.playerX+(col-(cols-1)/2)*gapX,H-67-row*gapY,unitScale);}
